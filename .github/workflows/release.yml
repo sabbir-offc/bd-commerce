@@ -1,0 +1,70 @@
+name: Release
+
+# Publishing happens by pushing a version tag, not by running npm from a laptop.
+# That keeps the npm token off your machine and out of your shell history, and
+# it gets the package a provenance attestation: npm shows a "Built and signed
+# on GitHub Actions" badge linking back to the exact commit and workflow run.
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      # `id-token: write` is what mints the provenance attestation.
+      id-token: write
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      # Refuse to publish a tag that does not match the version in package.json.
+      # Getting these out of step is the classic way to publish the wrong thing.
+      - name: Check the tag matches package.json
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $PKG"
+            exit 1
+          fi
+          echo "Publishing $PKG"
+
+      - run: pnpm run format:check
+
+      - run: pnpm run typecheck
+
+      - run: pnpm run test
+
+      - run: pnpm run build
+
+      # Prove the published artifact actually loads on the oldest supported Node
+      # before it reaches the registry, not after.
+      - run: node scripts/ci/import-check.mjs
+
+      - name: Publish to npm
+        # `prepublishOnly` would re-run the whole check; it has already run above.
+        run: npm publish --provenance --access public --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Just this version's section, not the whole changelog.
+      - name: Extract the release notes
+        run: node scripts/ci/changelog-section.mjs "${GITHUB_REF_NAME#v}" > RELEASE_NOTES.md
+
+      - name: Create the GitHub release
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file RELEASE_NOTES.md --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}

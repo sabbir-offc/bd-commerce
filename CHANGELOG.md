@@ -1,6 +1,13 @@
 # Changelog
 
-## 0.4.0 — unreleased
+## 0.4.0
+
+The first release published to npm. Versions 0.1.0 through 0.3.0 below were developed and tagged in
+the repository but never published, so this is what a consumer sees first.
+
+**Not yet exercised against live merchant credentials.** Pathao's read surface and RedX's transport
+are confirmed against the real APIs; the order-creation and payment paths are not. See the
+verification note in the README before putting this in front of real money.
 
 ### Added
 

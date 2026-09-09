@@ -18,8 +18,11 @@ The next two things, in order:
    is the script for it. `pnpm run smoke:pathao` needs nothing at all; `pnpm run smoke:redx` needs
    your own token. What is and is not confirmed is listed below; until every provider is covered,
    the README's verification note must stay.
-2. **Check the npm name.** `bd-commerce` was assumed available, not confirmed. If it is taken,
-   `@sabbir-offc/bd-commerce` is the fallback and the README install line changes with it.
+2. **Publish 0.4.0.** The npm name `bd-commerce` is confirmed available (registry 404 on
+   2026-09-10). Publishing runs from CI, not a laptop: add an npm automation token as the
+   `NPM_TOKEN` repo secret, then push a `v*` tag. `.github/workflows/release.yml` verifies the tag
+   matches package.json, re-runs the full check, loads the built artifact on Node 18.17, publishes
+   with `--provenance`, and opens a GitHub release from that version's changelog section.
 
 ## What exists
 
@@ -127,6 +130,13 @@ examples/      steadfast-order.ts, bkash-checkout.ts
   now surfaced in the error message. Never point the smoke script at Steadfast with wrong keys.
 
 ## Log
+
+- **2026-09-10** — Release plumbing. Confirmed `bd-commerce` is unclaimed on npm and that the
+  tarball ships only LICENSE, README, dist and package.json — no `.env`, no `.smoke` transcripts,
+  no sources or tests. Sourcemaps carry embedded `sourcesContent`, so the 242 kB is earned rather
+  than dead weight. Added `release.yml` (tag-triggered, provenance, tag/version match check) and
+  `scripts/ci/changelog-section.mjs`. Nothing published yet: this machine has no npm auth and an
+  interactive login was not triggered.
 
 - **2026-09-10** — Nagad client, 40 new tests, and `scripts/smoke-nagad.ts`. First provider that
   cannot run on the edge, which forced the root-barrel decision and a CI assertion to keep it
