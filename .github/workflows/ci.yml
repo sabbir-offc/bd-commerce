@@ -6,13 +6,9 @@ on:
   pull_request:
 
 jobs:
+  # The toolchain needs a recent Node: pnpm 11 requires 22.13+.
   check:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # 18.17 is the floor declared in engines; 22 is what most users run.
-        node: ['18.17', '20', '22']
 
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +19,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 22
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -35,3 +31,34 @@ jobs:
       - run: pnpm run test
 
       - run: pnpm run build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 1
+
+  # `engines` promises Node 18.17+ to consumers. That is a claim about the
+  # published artifact, not about the build, so it gets tested separately with
+  # plain Node and no devDependencies.
+  compat:
+    needs: check
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['18.17', '20', '22', '24']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - run: node scripts/ci/import-check.mjs
