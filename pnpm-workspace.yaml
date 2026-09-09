@@ -1,0 +1,3 @@
+# esbuild ships a platform binary that tsup and vitest need at install time.
+allowBuilds:
+  esbuild: true
