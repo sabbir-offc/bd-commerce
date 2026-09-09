@@ -4,8 +4,9 @@ A running record of where this project stands. Updated as things happen, not at 
 
 ## Resume here
 
-v0.4 is code-complete and green: 226 tests, typecheck clean, ESM + CJS + d.ts build. Pushed to
-https://github.com/sabbir-offc/bd-commerce (public). Not published to npm.
+v0.4.0 is **published**: https://www.npmjs.com/package/bd-commerce, with a SLSA provenance
+attestation from the tagged CI run. 226 tests, typecheck clean, ESM + CJS + d.ts build. Repo public
+at https://github.com/sabbir-offc/bd-commerce.
 
 The next two things, in order:
 
@@ -18,11 +19,10 @@ The next two things, in order:
    is the script for it. `pnpm run smoke:pathao` needs nothing at all; `pnpm run smoke:redx` needs
    your own token. What is and is not confirmed is listed below; until every provider is covered,
    the README's verification note must stay.
-2. **Publish 0.4.0.** The npm name `bd-commerce` is confirmed available (registry 404 on
-   2026-09-10). Publishing runs from CI, not a laptop: add an npm automation token as the
-   `NPM_TOKEN` repo secret, then push a `v*` tag. `.github/workflows/release.yml` verifies the tag
-   matches package.json, re-runs the full check, loads the built artifact on Node 18.17, publishes
-   with `--provenance`, and opens a GitHub release from that version's changelog section.
+2. **Cut the next release** by bumping `version` in package.json, dating the changelog section,
+   then pushing a matching `v*` tag. `.github/workflows/release.yml` does the rest and refuses a tag
+   that does not match package.json. Never publish from a laptop; `NPM_TOKEN` lives only as a repo
+   secret.
 
 ## What exists
 
@@ -130,6 +130,13 @@ examples/      steadfast-order.ts, bkash-checkout.ts
   now surfaced in the error message. Never point the smoke script at Steadfast with wrong keys.
 
 ## Log
+
+- **2026-09-10** — **Published v0.4.0 to npm.** Tagged `v0.4.0`, the Release workflow ran green end
+  to end, and provenance is attached (`predicateType: slsa.dev/provenance/v1`). Verified by
+  installing from the public registry into a clean project: all five clients import, both the root
+  and every subpath resolve, and the two flagship guards fire —
+  `toDeliveryStatus('delivered_approval_pending')` returns `in_review`, and a RedX weight of `0.5`
+  is rejected as kilograms-not-grams. GitHub release created from the changelog section.
 
 - **2026-09-10** — Release plumbing. Confirmed `bd-commerce` is unclaimed on npm and that the
   tarball ships only LICENSE, README, dist and package.json — no `.env`, no `.smoke` transcripts,
