@@ -1,0 +1,5 @@
+# Keep line endings deterministic across Windows and CI, so prettier --check
+# does not disagree with itself on a fresh clone.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
