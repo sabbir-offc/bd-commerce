@@ -1,6 +1,22 @@
 # Changelog
 
-## 0.4.0
+## 0.4.1 — 2026-09-10
+
+Documentation only. No code changed; the published 0.4.0 artifact is byte-identical in behaviour.
+
+- Rewrote the README around a table of contents, a quick start, support matrices for couriers and
+  payments, and a consolidated table of the mistakes this package prevents.
+- **Fixed a wrong courier comparison table.** It listed only Steadfast and Pathao; the RedX column
+  had been lost to an edit that silently failed, so the package page understated what is supported.
+- The verification section is now a per-provider table of what has and has not been checked against
+  the live APIs, including the Nagad row that was missing entirely.
+- Corrected stale claims: "the same two integrations" in the intro, and "both providers" in the
+  errors section.
+- CONTRIBUTING reordered by how much a contributor needs to start, with the Steadfast key-lockout
+  warning promoted to a callout, plus the release process.
+- Copyright and package author are now Md. Sabbir Howlader.
+
+## 0.4.0 — 2026-09-10
 
 The first release published to npm. Versions 0.1.0 through 0.3.0 below were developed and tagged in
 the repository but never published, so this is what a consumer sees first.

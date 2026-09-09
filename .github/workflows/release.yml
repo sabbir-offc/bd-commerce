@@ -54,15 +54,16 @@ jobs:
       # before it reaches the registry, not after.
       - run: node scripts/ci/import-check.mjs
 
+      # Before publishing, not after: a missing changelog section should stop the
+      # release while that is still possible, rather than after npm has the version.
+      - name: Extract the release notes
+        run: node scripts/ci/changelog-section.mjs "${GITHUB_REF_NAME#v}" > RELEASE_NOTES.md
+
       - name: Publish to npm
         # `prepublishOnly` would re-run the whole check; it has already run above.
         run: npm publish --provenance --access public --ignore-scripts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      # Just this version's section, not the whole changelog.
-      - name: Extract the release notes
-        run: node scripts/ci/changelog-section.mjs "${GITHUB_REF_NAME#v}" > RELEASE_NOTES.md
 
       - name: Create the GitHub release
         run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file RELEASE_NOTES.md --verify-tag
