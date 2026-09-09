@@ -8,10 +8,12 @@ delivery statuses treated as final, payments marked paid on a redirect that was 
 token grants fired per request until bKash rate-limits the merchant. This package is one careful
 implementation of both, so you can stop writing the third one.
 
-Covers **Steadfast**, **Pathao Courier**, **RedX**, and **bKash tokenized checkout**. Nagad is
-next; see [ROADMAP.md](ROADMAP.md).
+Covers **Steadfast**, **Pathao Courier** and **RedX** for delivery, and **bKash** and **Nagad**
+for payment. See [ROADMAP.md](ROADMAP.md) for what is deliberately out of scope.
 
-- Zero runtime dependencies. Native `fetch` only, so it runs on Node 18.17+, Bun, Deno, and edge runtimes.
+- Zero runtime dependencies. Native `fetch` only, so it runs on Node 18.17+, Bun, Deno and edge
+  runtimes. The one exception is `bd-commerce/nagad`, which needs `node:crypto`; it is kept off the
+  package root so the rest stays edge-safe.
 - ESM and CJS, with full type declarations.
 - Normalized results across providers, with the untouched provider payload kept on `raw`.
 - One error hierarchy, with `retryable` set honestly.
@@ -291,6 +293,64 @@ not every courier has them — probe with `await courier.getBalance?.()` rather 
 | `getBalance`                  | yes       | no                                                |
 | Address                       | free text | `resolveLocation` or city/zone/area ids           |
 | Price quote before shipping   | no        | `calculatePrice`                                  |
+
+## Nagad
+
+**Node only.** Nagad encrypts with RSAES-PKCS1-v1_5, which WebCrypto does not implement — it offers
+only RSA-OAEP — so this client uses `node:crypto`. That is also why Nagad is the one provider _not_
+re-exported from the package root: importing `bd-commerce` stays edge-safe for everyone else.
+Supply your own `crypto` provider to run it elsewhere.
+
+```ts
+import { NagadClient } from 'bd-commerce/nagad'
+
+const nagad = new NagadClient({
+  merchantId: process.env.NAGAD_MERCHANT_ID!,
+  merchantNumber: process.env.NAGAD_MERCHANT_NUMBER!,
+  merchantPrivateKey: process.env.NAGAD_PRIVATE_KEY!, // PEM or bare base64
+  nagadPublicKey: process.env.NAGAD_PUBLIC_KEY!,
+  callbackUrl: 'https://shop.example.com/api/nagad/callback',
+})
+```
+
+Nagad's checkout is a two-leg handshake — initialize, then complete, echoing back a challenge it
+returns in between. `createPayment` does both, because a half-finished handshake leaves a payment
+reference that can never be used:
+
+```ts
+// 1. At checkout.
+const payment = await nagad.createPayment({ orderId: 'ORD-1042', amount: 1250 })
+redirect(payment.redirectUrl)
+```
+
+```ts
+// 2. In the callback route. The redirect is shopper-controlled, so it says
+//    which branch to take and nothing more.
+const { paymentReferenceId } = NagadClient.parseCallback(request.url)
+
+const verified = await nagad.verifyPayment(paymentReferenceId)
+if (verified.outcome === 'success') {
+  await markPaid(verified.orderId, verified.issuerPaymentRefNo)
+}
+```
+
+Only `outcome === 'success'` means money moved. `Aborted` and `Cancelled` both normalize to
+`cancelled`, and anything unrecognized becomes `unknown` — never `success`.
+
+### Things that bite on a first Nagad integration
+
+All three are handled for you, and all three are the reason a first attempt usually fails:
+
+- **Timestamps must be Dhaka local time**, formatted `yyyyMMddHHmmss`. A server running in UTC that
+  formats `new Date()` gets rejected. `dhakaTimestamp()` is exported if you need it directly.
+- **`X-KM-IP-V4` cannot be a loopback address.** `127.0.0.1` is swapped for a routable placeholder.
+- **Keys can be bare base64.** The merchant portal hands you an unarmored key; PEM headers are added
+  when they are missing.
+
+One thing is genuinely ambiguous. Nagad's integration guide specifies **SHA1withRSA**, but the most
+widely used Node and PHP implementations sign with **SHA256** and work in production, so accounts
+appear to differ. The default is SHA256; if response signatures fail to verify, the error says so
+and tells you to set `signatureAlgorithm: 'SHA1'`.
 
 ## Errors
 

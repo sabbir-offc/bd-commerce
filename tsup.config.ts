@@ -7,6 +7,7 @@ export default defineConfig({
     'src/bkash/index.ts',
     'src/pathao/index.ts',
     'src/redx/index.ts',
+    'src/nagad/index.ts',
   ],
   format: ['esm', 'cjs'],
   dts: true,

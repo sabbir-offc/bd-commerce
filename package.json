@@ -1,13 +1,14 @@
 {
   "name": "bd-commerce",
-  "version": "0.3.0",
-  "description": "Typed TypeScript clients for Bangladeshi commerce infrastructure. Steadfast, Pathao and RedX couriers, plus bKash tokenized checkout, with zero runtime dependencies.",
+  "version": "0.4.0",
+  "description": "Typed TypeScript clients for Bangladeshi commerce infrastructure. Steadfast, Pathao and RedX couriers, plus bKash and Nagad checkout, with zero runtime dependencies.",
   "keywords": [
     "bangladesh",
     "steadfast",
     "pathao",
     "redx",
     "bkash",
+    "nagad",
     "courier",
     "payment",
     "cod",
@@ -63,6 +64,11 @@
       "import": "./dist/redx/index.js",
       "require": "./dist/redx/index.cjs"
     },
+    "./nagad": {
+      "types": "./dist/nagad/index.d.ts",
+      "import": "./dist/nagad/index.js",
+      "require": "./dist/nagad/index.cjs"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -79,7 +85,8 @@
     "smoke:bkash": "node --env-file-if-exists=.env --import tsx scripts/smoke-bkash.ts",
     "smoke:steadfast": "node --env-file-if-exists=.env --import tsx scripts/smoke-steadfast.ts",
     "smoke:pathao": "node --env-file-if-exists=.env --import tsx scripts/smoke-pathao.ts",
-    "smoke:redx": "node --env-file-if-exists=.env --import tsx scripts/smoke-redx.ts"
+    "smoke:redx": "node --env-file-if-exists=.env --import tsx scripts/smoke-redx.ts",
+    "smoke:nagad": "node --env-file-if-exists=.env --import tsx scripts/smoke-nagad.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

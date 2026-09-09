@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.4.0 — unreleased
+
+### Added
+
+- `NagadClient`: `createPayment` (both legs of the initialize/complete handshake), `verifyPayment`,
+  and the static `parseCallback`.
+- `createNodeCrypto`, `dhakaTimestamp` and `randomChallenge` are exported for anyone who needs the
+  pieces directly, and `NagadCryptoProvider` lets you swap the RSA implementation.
+- Key loading accepts PEM or the bare base64 the merchant portal hands you.
+- `toPaymentOutcome` / `isPaid`, normalizing Nagad's statuses. Only `Success` is ever `success`.
+- `scripts/smoke-nagad.ts`.
+
+### Notes
+
+- **`bd-commerce/nagad` is Node-only and is deliberately not re-exported from the package root.**
+  Nagad encrypts with RSAES-PKCS1-v1_5, which WebCrypto does not implement, so the client imports
+  `node:crypto`. Keeping it on its own subpath is what preserves edge compatibility for the other
+  four providers; CI asserts the root bundle contains no crypto import.
+- The signature algorithm is ambiguous: Nagad's guide says SHA1withRSA, common implementations use
+  SHA256. Default is SHA256, switchable via `signatureAlgorithm`, and the verification error names
+  the alternative.
+
 ## 0.3.0 — unreleased
 
 ### Added

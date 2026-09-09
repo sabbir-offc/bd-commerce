@@ -12,6 +12,11 @@
  * import { PathaoClient } from 'bd-commerce/pathao'
  * import { RedxClient } from 'bd-commerce/redx'
  * ```
+ *
+ * Nagad is intentionally NOT re-exported here. It needs `node:crypto` for
+ * RSAES-PKCS1-v1_5, which WebCrypto does not implement, and pulling that into
+ * the root would cost every other consumer the ability to run on an edge
+ * runtime. Import it from `bd-commerce/nagad`.
  */
 
 export {

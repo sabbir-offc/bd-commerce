@@ -4,7 +4,7 @@ A running record of where this project stands. Updated as things happen, not at 
 
 ## Resume here
 
-v0.3 is code-complete and green: 186 tests, typecheck clean, ESM + CJS + d.ts build. Pushed to
+v0.4 is code-complete and green: 226 tests, typecheck clean, ESM + CJS + d.ts build. Pushed to
 https://github.com/sabbir-offc/bd-commerce (public). Not published to npm.
 
 The next two things, in order:
@@ -31,8 +31,9 @@ src/steadfast/ client.ts, status.ts, types.ts
 src/bkash/     client.ts, token.ts, types.ts
 src/pathao/    client.ts, status.ts, types.ts
 src/redx/      client.ts, status.ts, types.ts
-test/          186 tests, no network, scripted fetch double in helpers.ts
-scripts/       smoke-{bkash,steadfast,pathao,redx}.ts, lib/recorder.ts (shared)
+src/nagad/     client.ts, crypto.ts, status.ts, types.ts   Node-only, off the root barrel
+test/          226 tests, no network, scripted fetch double in helpers.ts
+scripts/       smoke-{bkash,steadfast,pathao,redx,nagad}.ts, lib/recorder.ts (shared)
 scripts/ci/    import-check.mjs, run against dist on every Node in engines
 examples/      steadfast-order.ts, bkash-checkout.ts
 ```
@@ -67,8 +68,24 @@ examples/      steadfast-order.ts, bkash-checkout.ts
   kilograms. Someone porting between them would otherwise pass `0.5` and ship a half-gram parcel.
 - **RedX `createOrders` is sequential and validates everything first.** There is no batch endpoint,
   and a bad row partway through should not leave real parcels behind it.
+- **Nagad is Node-only and stays off the root barrel.** WebCrypto has no RSAES-PKCS1-v1_5, so the
+  client needs `node:crypto`. Exporting it from the root would cost every other consumer edge
+  compatibility. `scripts/ci/import-check.mjs` asserts `NagadClient` is absent from the root, in
+  both ESM and CJS, on every Node in `engines`.
+- **`createPayment` runs both Nagad legs.** The challenge from initialize must be echoed in
+  complete; splitting them would let a caller strand a payment reference that can never be used.
 
 ## Open
+
+- **Nagad's signature algorithm is ambiguous.** Its integration guide says SHA1withRSA; the most
+  used Node and PHP implementations use SHA256 and work in production. Default here is SHA256 with
+  `signatureAlgorithm: 'SHA1'` as the escape hatch, and the verification error names it. A single
+  live sandbox run settles this.
+- **tsup rewrites `node:crypto` to a bare `crypto` in the output** and neither `platform: 'node'`
+  nor dropping `treeshake` prevents it (both were tried and reverted; esbuild alone preserves the
+  prefix, so it is tsup's own normalization). Harmless on Node, Bun and Deno; only relevant if
+  someone tries the Nagad subpath under Workers `nodejs_compat`, where it does not work anyway.
+  Not worth more effort unless someone reports it.
 
 - **bKash signals auth failure inside an HTTP 200.** Confirmed against the sandbox: bad credentials
   come back as `statusCode: "9999"` with HTTP 200, not 401. The automatic re-grant-and-retry in
@@ -81,6 +98,11 @@ examples/      steadfast-order.ts, bkash-checkout.ts
   Without it, esbuild has no binary and both tsup and vitest fail on a fresh clone.
 
 ## Confirmed against the live APIs
+
+- **Node's `privateDecrypt` never throws on a mismatched RSA key** — measured 200/200 silently
+  returning random bytes, which is the Marvin/Bleichenbacher implicit-rejection behaviour. The
+  Nagad client's "your key pair does not match" message therefore keys off the JSON parse failing,
+  not off a thrown decrypt. `test/nagad.test.ts` pins this so the branch is not "simplified" away.
 
 - **RedX's host, path prefix and auth header are right** (2026-09-10). A single read-only probe against
   `sandbox.redx.com.bd/v1.0.0-beta/pickup/stores` with an invalid token returned 401, not 404, so
@@ -105,6 +127,12 @@ examples/      steadfast-order.ts, bkash-checkout.ts
   now surfaced in the error message. Never point the smoke script at Steadfast with wrong keys.
 
 ## Log
+
+- **2026-09-10** — Nagad client, 40 new tests, and `scripts/smoke-nagad.ts`. First provider that
+  cannot run on the edge, which forced the root-barrel decision and a CI assertion to keep it
+  honest. Tests generate a real RSA keypair and play both sides of the handshake rather than
+  stubbing the crypto. Found and fixed an unreachable error branch: Node does not throw on a
+  mismatched decryption key. 226 tests.
 
 - **2026-09-10** — RedX client, 49 new tests, and `scripts/smoke-redx.ts`. Endpoint paths, the
   `API-ACCESS-TOKEN` header and both base URLs came from the codeboxr Laravel package's source

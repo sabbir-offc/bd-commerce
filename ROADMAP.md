@@ -37,11 +37,18 @@ a kilo fails loudly instead of shipping a half-gram parcel.
 RedX has no batch endpoint, so `createOrders` posts sequentially. It validates every row before
 sending any, because a bad row partway through should not leave real parcels behind it.
 
-## v0.4 — Nagad
+## v0.4 — Nagad (shipped)
 
-Nagad's checkout uses RSA signing of the sensitive payload rather than a bearer token, so it needs
-key handling that the bKash client does not. Worth doing only once bKash has been confirmed against
-live credentials, because the same execute-versus-redirect trap applies.
+Checkout as a single `createPayment` covering both legs of the handshake, plus `verifyPayment` and
+callback parsing. RSA, the Dhaka timestamp and the loopback-IP substitution are handled internally.
+
+Shipped ahead of the bKash live confirmation this was meant to wait for. The same
+redirect-is-not-proof trap applies to both, and it is documented the same way in each — but neither
+payment client has been exercised against a real merchant account yet.
+
+Nagad is the first provider that cannot run on an edge runtime: WebCrypto has no
+RSAES-PKCS1-v1_5. Keeping it off the package root, with an injectable `crypto` provider, is what
+preserves that property for the other four.
 
 ## Not planned
 

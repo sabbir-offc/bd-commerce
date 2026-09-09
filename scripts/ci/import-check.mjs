@@ -22,6 +22,7 @@ const steadfast = await import('bd-commerce/steadfast')
 const bkash = await import('bd-commerce/bkash')
 const pathao = await import('bd-commerce/pathao')
 const redx = await import('bd-commerce/redx')
+const nagad = await import('bd-commerce/nagad')
 
 for (const [label, mod] of [
   ['esm', esm],
@@ -41,6 +42,12 @@ assert.equal(typeof steadfast.SteadfastClient, 'function', 'subpath: bd-commerce
 assert.equal(typeof bkash.BkashClient, 'function', 'subpath: bd-commerce/bkash')
 assert.equal(typeof pathao.PathaoClient, 'function', 'subpath: bd-commerce/pathao')
 assert.equal(typeof redx.RedxClient, 'function', 'subpath: bd-commerce/redx')
+assert.equal(typeof nagad.NagadClient, 'function', 'subpath: bd-commerce/nagad')
+
+// Nagad must stay OFF the root barrel: it pulls in node:crypto, and the root
+// is meant to keep working on edge runtimes.
+assert.equal(esm.NagadClient, undefined, 'NagadClient must not be exported from the root')
+assert.equal(cjs.NagadClient, undefined, 'NagadClient must not be exported from the root (cjs)')
 
 // Each subpath keeps its own unprefixed mapper; the root disambiguates them.
 assert.equal(steadfast.toDeliveryStatus('delivered_approval_pending'), 'in_review')

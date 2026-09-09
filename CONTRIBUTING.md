@@ -33,6 +33,18 @@ pnpm run smoke:pathao              # auth, stores, hierarchy, price, order, read
 pnpm run smoke:pathao -- --no-create
 ```
 
+Nagad needs merchant onboarding and an RSA key pair, so its script needs a full `.env`:
+
+```bash
+pnpm run smoke:nagad                    # create a payment, then verify it
+pnpm run smoke:nagad -- --verify <ref>  # after paying at the redirect URL
+```
+
+Its two checkout responses are RSA envelopes, so the transcript cannot be key-diffed the way the
+other providers' can. What a successful run does prove is the whole crypto handshake: a redirect URL
+comes back only if the key pair, padding, signature algorithm, Dhaka timestamp and challenge echo
+were all accepted.
+
 RedX has a sandbox but publishes no shared credentials, so its script needs your own token. It is
 read-only by default, and creating against production takes three flags:
 
