@@ -10,6 +10,7 @@
  * import { SteadfastClient } from 'bd-commerce/steadfast'
  * import { BkashClient } from 'bd-commerce/bkash'
  * import { PathaoClient } from 'bd-commerce/pathao'
+ * import { RedxClient } from 'bd-commerce/redx'
  * ```
  */
 
@@ -104,7 +105,10 @@ export {
   type PathaoLocationQuery,
   type PathaoPriceQuery,
 } from './pathao/client.js'
-export { needsAttention, toDeliveryStatus as toPathaoDeliveryStatus } from './pathao/status.js'
+export {
+  needsAttention as pathaoNeedsAttention,
+  toDeliveryStatus as toPathaoDeliveryStatus,
+} from './pathao/status.js'
 export {
   DELIVERY_TYPE,
   ITEM_TYPE,
@@ -122,3 +126,31 @@ export {
   type PathaoTokenResponse,
   type PathaoZone,
 } from './pathao/types.js'
+
+// --- RedX ---------------------------------------------------------------------
+
+export {
+  RedxClient,
+  REDX_LIVE_BASE_URL,
+  REDX_SANDBOX_BASE_URL,
+  type RedxConfig,
+  type RedxCreateOrderInput,
+} from './redx/client.js'
+export {
+  needsAttention as redxNeedsAttention,
+  toDeliveryStatus as toRedxDeliveryStatus,
+} from './redx/status.js'
+export type {
+  RedxArea,
+  RedxAreasResponse,
+  RedxCreateParcelResponse,
+  RedxParcelInfo,
+  RedxParcelInfoResponse,
+  RedxParcelItem,
+  RedxParcelStatus,
+  RedxPickupStore,
+  RedxPickupStoreResponse,
+  RedxPickupStoresResponse,
+  RedxTrackingEvent,
+  RedxTrackingResponse,
+} from './redx/types.js'

@@ -21,6 +21,7 @@ const cjs = require('../../dist/index.cjs')
 const steadfast = await import('bd-commerce/steadfast')
 const bkash = await import('bd-commerce/bkash')
 const pathao = await import('bd-commerce/pathao')
+const redx = await import('bd-commerce/redx')
 
 for (const [label, mod] of [
   ['esm', esm],
@@ -29,6 +30,7 @@ for (const [label, mod] of [
   assert.equal(typeof mod.SteadfastClient, 'function', `${label}: SteadfastClient missing`)
   assert.equal(typeof mod.BkashClient, 'function', `${label}: BkashClient missing`)
   assert.equal(typeof mod.PathaoClient, 'function', `${label}: PathaoClient missing`)
+  assert.equal(typeof mod.RedxClient, 'function', `${label}: RedxClient missing`)
   assert.equal(typeof mod.normalizeBdPhone, 'function', `${label}: normalizeBdPhone missing`)
 
   assert.equal(mod.normalizeBdPhone('+880 1712-345678'), '01712345678', `${label}: phone`)
@@ -38,12 +40,14 @@ for (const [label, mod] of [
 assert.equal(typeof steadfast.SteadfastClient, 'function', 'subpath: bd-commerce/steadfast')
 assert.equal(typeof bkash.BkashClient, 'function', 'subpath: bd-commerce/bkash')
 assert.equal(typeof pathao.PathaoClient, 'function', 'subpath: bd-commerce/pathao')
+assert.equal(typeof redx.RedxClient, 'function', 'subpath: bd-commerce/redx')
 
 // Each subpath keeps its own unprefixed mapper; the root disambiguates them.
 assert.equal(steadfast.toDeliveryStatus('delivered_approval_pending'), 'in_review')
 assert.equal(pathao.toDeliveryStatus('Delivery_Failed'), 'on_hold')
 assert.equal(esm.toSteadfastDeliveryStatus('hold'), 'on_hold')
 assert.equal(esm.toPathaoDeliveryStatus('In_Transit'), 'in_transit')
+assert.equal(esm.toRedxDeliveryStatus('delivery-in-progress'), 'in_transit')
 
 // Construction and local validation, with no network in sight.
 assert.throws(() => new esm.SteadfastClient({ apiKey: '', secretKey: 'x' }), esm.ConfigError)

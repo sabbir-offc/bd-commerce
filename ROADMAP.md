@@ -24,9 +24,18 @@ genuinely needs more than a free-text address and pretending otherwise only fail
 `getStatusByInvoice`, `getStatusByTrackingCode` and `getBalance` are now optional, because Pathao
 has none of them.
 
-## v0.3 — RedX
+## v0.3 — RedX (shipped)
 
-Closest in shape to Steadfast. Mostly a matter of area codes and status vocabulary.
+Parcels, sequential bulk, parcel info, the tracking timeline, a cached area list with
+`resolveArea`, and pickup stores.
+
+Simpler than Pathao in two ways — a static token instead of OAuth, and a flat area list instead of
+a three-level hierarchy — and sharper in one: RedX measures weight in **grams** where Pathao uses
+kilograms. `parcelWeightGrams` says so in the name and rejects non-integers, so `0.5` meaning half
+a kilo fails loudly instead of shipping a half-gram parcel.
+
+RedX has no batch endpoint, so `createOrders` posts sequentially. It validates every row before
+sending any, because a bad row partway through should not leave real parcels behind it.
 
 ## v0.4 — Nagad
 

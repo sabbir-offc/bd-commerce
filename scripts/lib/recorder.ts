@@ -101,12 +101,13 @@ export function reportShapeDrift(
   heading('Response shape vs the types in src/')
 
   let drifted = false
-  let checked = 0
+  let printed = 0
 
   for (const exchange of transcript) {
     const spec = expected[exchange.endpoint]
     if (!spec) continue
     if (!isRecord(exchange.responseBody)) continue
+    printed++
     if (exchange.status >= 400) {
       // An error body is a different shape by design. Comparing it against the
       // success spec would report drift that does not exist.
@@ -116,7 +117,6 @@ export function reportShapeDrift(
       continue
     }
 
-    checked++
     const problems = diffKeys(exchange.responseBody, spec, '')
     const missing = problems.filter((p) => p.kind === 'missing').map((p) => p.path)
     const unknown = problems.filter((p) => p.kind === 'unknown').map((p) => p.path)
@@ -132,7 +132,7 @@ export function reportShapeDrift(
     }
   }
 
-  if (checked === 0) {
+  if (printed === 0) {
     console.log('  (nothing to check — no recognized responses were recorded)')
   }
   if (drifted) {

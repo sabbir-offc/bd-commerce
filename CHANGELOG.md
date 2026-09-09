@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.3.0 — unreleased
+
+### Added
+
+- `RedxClient`: `createOrder`, `createOrders`, `getStatusByConsignmentId`,
+  `getStatusByTrackingCode`, `track`, `listAreas`, `resolveArea`, `listPickupStores`,
+  `getPickupStore`. Authenticates with RedX's `API-ACCESS-TOKEN` header; there is no OAuth
+  exchange and nothing to refresh.
+- `parcelWeightGrams`, named for its unit and rejecting non-integers, because RedX measures in
+  grams where Pathao measures in kilograms.
+- `items` is serialized into RedX's `parcel_details_json` for you.
+- `scripts/smoke-redx.ts`, read-only by default; creating against production takes
+  `--live --create --confirm-live`.
+
+### Changed
+
+- The root barrel prefixes both providers' `needsAttention` (`pathaoNeedsAttention`,
+  `redxNeedsAttention`), matching what was already done for `toDeliveryStatus`. The unprefixed
+  names remain on each subpath.
+
+### Verified against the live API
+
+RedX's sandbox host, `v1.0.0-beta` path prefix and `API-ACCESS-TOKEN` header are confirmed: an
+invalid token returns 401, not 404. Its success paths need a merchant token and are unverified.
+
 ## 0.2.0 — unreleased
 
 ### Added

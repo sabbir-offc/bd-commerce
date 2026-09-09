@@ -33,6 +33,15 @@ pnpm run smoke:pathao              # auth, stores, hierarchy, price, order, read
 pnpm run smoke:pathao -- --no-create
 ```
 
+RedX has a sandbox but publishes no shared credentials, so its script needs your own token. It is
+read-only by default, and creating against production takes three flags:
+
+```bash
+pnpm run smoke:redx                  # areas + pickup stores
+pnpm run smoke:redx -- --create      # plus a sandbox parcel
+pnpm run smoke:redx -- --live --create --confirm-live
+```
+
 Steadfast has no sandbox — every call is live — so its script defaults to read-only:
 
 ```bash

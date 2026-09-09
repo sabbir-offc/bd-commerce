@@ -8,7 +8,7 @@ delivery statuses treated as final, payments marked paid on a redirect that was 
 token grants fired per request until bKash rate-limits the merchant. This package is one careful
 implementation of both, so you can stop writing the third one.
 
-Covers **Steadfast**, **Pathao Courier**, and **bKash tokenized checkout**. RedX and Nagad are
+Covers **Steadfast**, **Pathao Courier**, **RedX**, and **bKash tokenized checkout**. Nagad is
 next; see [ROADMAP.md](ROADMAP.md).
 
 - Zero runtime dependencies. Native `fetch` only, so it runs on Node 18.17+, Bun, Deno, and edge runtimes.
@@ -160,6 +160,52 @@ if (status.status === 'on_hold') await escalate(order.invoice, status.providerSt
 
 Also available: `createOrders` (bulk), `listStores`, `createStore`.
 
+## RedX
+
+RedX issues a long-lived merchant token rather than running an OAuth exchange, so there is nothing
+to refresh. Its addresses are a flat area list, not Pathao's three-level hierarchy.
+
+```ts
+import { RedxClient } from 'bd-commerce/redx'
+
+const redx = new RedxClient({
+  accessToken: process.env.REDX_ACCESS_TOKEN!,
+  defaultPickupStoreId: Number(process.env.REDX_STORE_ID),
+})
+
+const area = await redx.resolveArea('Banani')
+
+const order = await redx.createOrder({
+  invoice: 'ORD-1042',
+  recipientName: 'Rahim Uddin',
+  recipientPhone: '01712345678',
+  recipientAddress: 'House 4, Road 11, Banani, Dhaka',
+  deliveryAreaId: area.id,
+  deliveryArea: area.name, // RedX wants both the id and the name
+  codAmount: 1250,
+  parcelWeightGrams: 500,
+})
+
+order.trackingCode // '21J9L5PP3AB4'
+```
+
+### Weight is in grams here
+
+RedX measures parcels in **grams**; Pathao measures in **kilograms**. Porting an integration
+between the two is the obvious way to ship a half-gram parcel and get charged for it. So the field
+is named `parcelWeightGrams`, and a non-integer is rejected outright:
+
+```ts
+await redx.createOrder({ ...order, parcelWeightGrams: 0.5 })
+// ValidationError: `parcelWeightGrams` must be a whole number of grams —
+// RedX measures in grams, not kilograms — got 0.5
+```
+
+`createOrders` posts sequentially because RedX has no batch endpoint, and validates every row
+before sending any of them — a bad row at index 40 should not leave 39 real parcels behind it.
+
+Also available: `track` (full event timeline), `listAreas`, `listPickupStores`, `getPickupStore`.
+
 ## bKash
 
 ```ts
@@ -305,12 +351,14 @@ your merchant account returns, open an issue with the raw payload — `error.res
 verbatim — and it will be fixed quickly. `baseUrl` is overridable on both clients in the meantime.
 
 Verified so far, by running the smoke scripts against the real APIs: Pathao's auth, stores,
-city/zone/area lists and price plan all match the types here exactly. Pathao's order creation, and
-everything on the Steadfast and bKash success paths, is still unconfirmed.
+city/zone/area lists and price plan all match the types here exactly, and RedX's host, path prefix
+and auth header are confirmed (an invalid token returns 401, not 404). Pathao's order creation,
+RedX's success paths, and everything on the Steadfast and bKash success paths are still unconfirmed
+— those need credentials.
 
-`pnpm run smoke:pathao`, `pnpm run smoke:bkash` and `pnpm run smoke:steadfast` each report any
-drift between the live responses and the types in this package. See
-[CONTRIBUTING.md](CONTRIBUTING.md).
+`pnpm run smoke:pathao`, `pnpm run smoke:redx`, `pnpm run smoke:bkash` and
+`pnpm run smoke:steadfast` each report any drift between the live responses and the types in this
+package. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Contributing
 
