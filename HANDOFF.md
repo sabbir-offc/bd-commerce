@@ -4,21 +4,20 @@ A running record of where this project stands. Updated as things happen, not at 
 
 ## Resume here
 
-v0.1 is code-complete and green locally: 83 tests, typecheck clean, ESM + CJS + d.ts build.
-Nothing has been published and no remote exists yet.
+v0.1 is code-complete and green: 86 tests, typecheck clean, ESM + CJS + d.ts build. Pushed to
+https://github.com/sabbir-offc/bd-commerce (public). Not published to npm.
 
-The next three things, in order:
+The next two things, in order:
 
 1. **Verify against live credentials.** Everything here was written from published merchant docs.
    The bKash half has a script for this: `pnpm run smoke:bkash` (see `scripts/smoke-bkash.ts`). It
    drives the sandbox, records every exchange to `.smoke/` with secrets redacted, and diffs each
    response's keys against `src/bkash/types.ts`. Sandbox credentials are free and need no merchant
    onboarding. Steadfast has no sandbox, so that half still needs a real merchant account or a
-   payload borrowed from someone who has one; `examples/steadfast-order.ts` is the script for it.
+   payload borrowed from someone who has one; `pnpm run smoke:steadfast` is read-only by default and
+   is the script for it.
    Until both halves are confirmed, the README's verification note must stay.
-2. **Create the GitHub repo** and push. `package.json` currently assumes
-   `github.com/sabbir-offc/bd-commerce`; change it if the repo lands elsewhere.
-3. **Check the npm name.** `bd-commerce` was assumed available, not confirmed. If it is taken,
+2. **Check the npm name.** `bd-commerce` was assumed available, not confirmed. If it is taken,
    `@sabbir-offc/bd-commerce` is the fallback and the README install line changes with it.
 
 ## What exists
@@ -28,7 +27,8 @@ src/core/      errors.ts, http.ts, phone.ts     shared transport and validation
 src/courier/   types.ts                          the Courier interface Pathao/RedX will implement
 src/steadfast/ client.ts, status.ts, types.ts
 src/bkash/     client.ts, token.ts, types.ts
-test/          80 tests, no network, scripted fetch double in helpers.ts
+test/          86 tests, no network, scripted fetch double in helpers.ts
+scripts/       smoke-bkash.ts, smoke-steadfast.ts, lib/recorder.ts (shared)
 examples/      steadfast-order.ts, bkash-checkout.ts
 ```
 
@@ -40,7 +40,10 @@ examples/      steadfast-order.ts, bkash-checkout.ts
   can flip and the COD money has not moved. `pendingApproval` and `providerStatus` carry the detail
   for anyone who wants it. This is the single most valuable thing the package does.
 - **Writes are never retried.** `createOrder` and `executePayment` pass `retryable: false`. A
-  replayed create ships a second parcel at the merchant's cost.
+  replayed create ships a second parcel at the merchant's cost. Auth failures are not retried
+  either, which matters more than it looks: see the Steadfast lockout below.
+- **The Steadfast smoke test is read-only unless told otherwise.** There is no sandbox, so the
+  default run cannot cost anything. Creating a consignment needs `--create --confirm-live`.
 - **bKash token cache is pluggable and defaults to memory.** Correct for a long-lived server, wrong
   for serverless, and the README says so rather than guessing at Redis.
 - **Bulk create reports per row.** Steadfast fails rows individually; collapsing that into one
@@ -58,8 +61,23 @@ examples/      steadfast-order.ts, bkash-checkout.ts
 - pnpm 11 moved build-script approval to `pnpm-workspace.yaml` (`allowBuilds: esbuild: true`).
   Without it, esbuild has no binary and both tsup and vitest fail on a fresh clone.
 
+## Confirmed against the live APIs
+
+- **Steadfast uses a real HTTP 401** for bad credentials, with the code mirrored in the body's
+  `status`. Our `AuthError` mapping is correct for it. bKash does the opposite (see Open).
+- **Steadfast rate-limits credential attempts.** A 401 carries `attempts_left`, counting down to a
+  locked key. Auth failures are not retryable, so one bad call costs one attempt, and the count is
+  now surfaced in the error message. Never point the smoke script at Steadfast with wrong keys.
+
 ## Log
 
+- **2026-09-09** — Added `scripts/smoke-steadfast.ts` and pulled the shared recorder into
+  `scripts/lib/recorder.ts`. The Steadfast script is read-only unless given both `--create` and
+  `--confirm-live`, because there is no sandbox. A read-only run against the live API with invalid
+  keys confirmed the 401 mapping and revealed `attempts_left`; the client now surfaces the count via
+  a new `annotateError` hook on `HttpClient`. Also fixed the drift checker, which was comparing
+  error bodies against the success spec and reporting drift that did not exist. 86 tests.
+- **2026-09-09** — Repo created and pushed: https://github.com/sabbir-offc/bd-commerce (public).
 - **2026-09-09** — Added `scripts/smoke-bkash.ts`. Running it against the sandbox with deliberately
   fake credentials found two real bugs, both fixed: bKash returns error bodies with a raw newline
   inside a JSON string value, which is not legal JSON, so `parseBody` fell back to raw text and a

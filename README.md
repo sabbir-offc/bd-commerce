@@ -83,6 +83,19 @@ you what the rider claimed without pretending it is final.
 
 Also available: `getStatusByConsignmentId`, `getStatusByTrackingCode`, `getBalance`.
 
+### Credential attempts are limited
+
+Steadfast counts down `attempts_left` on every rejected credential and locks the API key when it
+reaches zero. A typo in a production environment variable can lock a live merchant out of their own
+courier, so this package puts the remaining count directly in the error and never retries an auth
+failure:
+
+```
+steadfast: Unauthorized Access (invalid API credentials) — 9 credential attempts left before the key is locked
+```
+
+Do not test Steadfast with deliberately wrong keys.
+
 ## bKash
 
 ```ts
@@ -211,8 +224,9 @@ run end to end against live merchant credentials. If a field name or endpoint pa
 your merchant account returns, open an issue with the raw payload — `error.response` carries it
 verbatim — and it will be fixed quickly. `baseUrl` is overridable on both clients in the meantime.
 
-`pnpm run smoke:bkash` drives the free bKash sandbox and reports any drift between the live
-responses and the types in this package. See [CONTRIBUTING.md](CONTRIBUTING.md).
+`pnpm run smoke:bkash` drives the free bKash sandbox and `pnpm run smoke:steadfast` runs a
+read-only pass against Steadfast; both report any drift between the live responses and the types in
+this package. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Contributing
 

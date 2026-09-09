@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { SteadfastClient } from '../src/steadfast/client.js'
 import { reportedStatus, toDeliveryStatus } from '../src/steadfast/status.js'
-import { ConfigError, ProviderError, ValidationError } from '../src/core/errors.js'
+import { AuthError, ConfigError, ProviderError, ValidationError } from '../src/core/errors.js'
 import { createFetchMock, type MockReply } from './helpers.js'
 
 const CREDENTIALS = { apiKey: 'test-key', secretKey: 'test-secret' }
@@ -188,6 +188,46 @@ describe('status lookups', () => {
   it('requires an identifier', async () => {
     const { client } = makeClient([{ body: {} }])
     await expect(client.getStatusByInvoice('')).rejects.toBeInstanceOf(ValidationError)
+  })
+})
+
+describe('credential failures', () => {
+  // Payload recorded from the live API on 2026-09-09. Steadfast counts down
+  // and locks the key, so a merchant must see the count before burning it.
+  it('puts the remaining attempts in the error message', async () => {
+    const { client } = makeClient([
+      {
+        status: 401,
+        body: {
+          status: 401,
+          message: 'Unauthorized Access (invalid API credentials)',
+          attempts_left: 9,
+        },
+      },
+    ])
+
+    const error = await client.getBalance().catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(AuthError)
+    expect((error as AuthError).message).toContain('9 credential attempts left')
+  })
+
+  it('says the key is locked at zero', async () => {
+    const { client } = makeClient([
+      { status: 401, body: { status: 401, message: 'Unauthorized', attempts_left: 0 } },
+    ])
+
+    const error = await client.getBalance().catch((e: unknown) => e)
+    expect((error as AuthError).message).toContain('this API key is locked')
+  })
+
+  it('does not retry an auth failure, so attempts are not burned three at a time', async () => {
+    const mock = createFetchMock([
+      { status: 401, body: { status: 401, message: 'Unauthorized', attempts_left: 5 } },
+    ])
+    const client = new SteadfastClient({ ...CREDENTIALS, fetch: mock.fetchImpl, retries: 2 })
+
+    await expect(client.getBalance()).rejects.toBeInstanceOf(AuthError)
+    expect(mock.callCount).toBe(1)
   })
 })
 

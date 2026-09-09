@@ -15,6 +15,12 @@ export interface HttpClientOptions {
   retryBaseMs?: number
   /** Inject a fetch implementation. Defaults to global fetch. */
   fetch?: FetchLike
+  /**
+   * Lets a provider add a sentence to an error message when the body carries
+   * something the caller urgently needs to know — Steadfast's remaining
+   * credential attempts, for instance. Returning undefined changes nothing.
+   */
+  annotateError?: (parsed: unknown, status: number) => string | undefined
 }
 
 export interface RequestOptions {
@@ -50,6 +56,7 @@ export class HttpClient {
   private readonly retries: number
   private readonly retryBaseMs: number
   private readonly fetchImpl: FetchLike
+  private readonly annotateError: HttpClientOptions['annotateError']
 
   constructor(options: HttpClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, '')
@@ -58,6 +65,7 @@ export class HttpClient {
     this.timeoutMs = options.timeoutMs ?? 20_000
     this.retries = options.retries ?? 2
     this.retryBaseMs = options.retryBaseMs ?? 300
+    this.annotateError = options.annotateError
 
     const fetchImpl = options.fetch ?? globalThis.fetch
     if (typeof fetchImpl !== 'function') {
@@ -150,8 +158,11 @@ export class HttpClient {
   }
 
   private toResponseError(response: Response, parsed: unknown) {
-    const message = extractMessage(parsed) ?? response.statusText ?? 'Request failed'
     const base = { provider: this.provider, status: response.status, response: parsed }
+
+    const detail = extractMessage(parsed) ?? response.statusText ?? 'Request failed'
+    const note = this.annotateError?.(parsed, response.status)
+    const message = note ? `${detail} — ${note}` : detail
 
     if (response.status === 401 || response.status === 403) {
       return new AuthError(`${this.provider}: ${message}`, base)

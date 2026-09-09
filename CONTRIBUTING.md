@@ -25,8 +25,26 @@ It records every exchange to `.smoke/` with credentials, tokens, and customer nu
 diffs each response's keys against `src/bkash/types.ts`. A `DRIFT` line means this package's types
 are wrong. Sandbox credentials are free and do not require merchant onboarding.
 
-Steadfast has no sandbox, so its verification needs a real merchant account or a payload from
-someone who has one.
+Steadfast has no sandbox — every call is live — so its script defaults to read-only:
+
+```bash
+pnpm run smoke:steadfast                        # balance only, no writes
+pnpm run smoke:steadfast -- --invoice ORD-1042  # plus a status lookup
+```
+
+That already checks credentials, the base URL, the response envelope, and the balance and status
+shapes. Creating a real consignment needs two deliberate flags and should be cancelled in the
+merchant portal afterwards:
+
+```bash
+pnpm run smoke:steadfast -- --create --confirm-live --name "..." --phone 01... --address "..."
+```
+
+**Do not run it with deliberately wrong credentials.** Steadfast counts down `attempts_left` and
+locks the API key at zero.
+
+No merchant account? You can still help: one real `create_order` response and one status response,
+with the customer's details replaced, settles the field names.
 
 Include the raw payload. Every error thrown carries it on `error.response`:
 

@@ -87,6 +87,7 @@ export class SteadfastClient implements Courier {
         'Api-Key': config.apiKey,
         'Secret-Key': config.secretKey,
       },
+      annotateError: annotateAttemptsLeft,
     })
   }
 
@@ -261,6 +262,23 @@ export class SteadfastClient implements Courier {
       ...(input.recipientEmail ? { recipient_email: input.recipientEmail } : {}),
     }
   }
+}
+
+/**
+ * Steadfast counts down `attempts_left` on rejected credentials and locks the
+ * key when it reaches zero. A merchant debugging a typo in production needs to
+ * see that before they burn the rest, so it goes in the error message.
+ */
+function annotateAttemptsLeft(parsed: unknown, status: number): string | undefined {
+  if (status !== 401 && status !== 403) return undefined
+  if (!parsed || typeof parsed !== 'object') return undefined
+
+  const attempts = (parsed as { attempts_left?: unknown }).attempts_left
+  if (typeof attempts !== 'number') return undefined
+
+  return attempts <= 0
+    ? 'no attempts left, this API key is locked'
+    : `${attempts} credential ${attempts === 1 ? 'attempt' : 'attempts'} left before the key is locked`
 }
 
 function toCourierOrder(consignment: SteadfastConsignment): CourierOrder {

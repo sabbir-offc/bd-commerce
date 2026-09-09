@@ -64,7 +64,8 @@
     "format:check": "prettier --check .",
     "check": "pnpm run typecheck && pnpm run test && pnpm run build",
     "prepublishOnly": "pnpm run check",
-    "smoke:bkash": "node --env-file-if-exists=.env --import tsx scripts/smoke-bkash.ts"
+    "smoke:bkash": "node --env-file-if-exists=.env --import tsx scripts/smoke-bkash.ts",
+    "smoke:steadfast": "node --env-file-if-exists=.env --import tsx scripts/smoke-steadfast.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
