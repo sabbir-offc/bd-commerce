@@ -4,15 +4,18 @@ A running record of where this project stands. Updated as things happen, not at 
 
 ## Resume here
 
-v0.1 is code-complete and green locally: 80 tests, typecheck clean, ESM + CJS + d.ts build.
+v0.1 is code-complete and green locally: 83 tests, typecheck clean, ESM + CJS + d.ts build.
 Nothing has been published and no remote exists yet.
 
 The next three things, in order:
 
 1. **Verify against live credentials.** Everything here was written from published merchant docs.
-   Run `examples/steadfast-order.ts` against a real Steadfast account and a sandbox bKash account,
-   and correct any field or endpoint that differs. Until that is done, the README's verification
-   note must stay.
+   The bKash half has a script for this: `pnpm run smoke:bkash` (see `scripts/smoke-bkash.ts`). It
+   drives the sandbox, records every exchange to `.smoke/` with secrets redacted, and diffs each
+   response's keys against `src/bkash/types.ts`. Sandbox credentials are free and need no merchant
+   onboarding. Steadfast has no sandbox, so that half still needs a real merchant account or a
+   payload borrowed from someone who has one; `examples/steadfast-order.ts` is the script for it.
+   Until both halves are confirmed, the README's verification note must stay.
 2. **Create the GitHub repo** and push. `package.json` currently assumes
    `github.com/sabbir-offc/bd-commerce`; change it if the repo lands elsewhere.
 3. **Check the npm name.** `bd-commerce` was assumed available, not confirmed. If it is taken,
@@ -45,6 +48,11 @@ examples/      steadfast-order.ts, bkash-checkout.ts
 
 ## Open
 
+- **bKash signals auth failure inside an HTTP 200.** Confirmed against the sandbox: bad credentials
+  come back as `statusCode: "9999"` with HTTP 200, not 401. The automatic re-grant-and-retry in
+  `BkashClient.authed()` keys off `AuthError`, which only fires on 401/403, so it may never trigger
+  in practice. Needs one observation with a genuinely expired id token to learn which code bKash
+  uses for that, then the retry should key off the code instead.
 - Idempotency on `createOrder` after a timeout: currently the caller's problem, documented in
   ROADMAP. A `getStatusByInvoice` probe before retry is probably the right guidance.
 - pnpm 11 moved build-script approval to `pnpm-workspace.yaml` (`allowBuilds: esbuild: true`).
@@ -52,6 +60,12 @@ examples/      steadfast-order.ts, bkash-checkout.ts
 
 ## Log
 
+- **2026-09-09** — Added `scripts/smoke-bkash.ts`. Running it against the sandbox with deliberately
+  fake credentials found two real bugs, both fixed: bKash returns error bodies with a raw newline
+  inside a JSON string value, which is not legal JSON, so `parseBody` fell back to raw text and a
+  credential failure surfaced as a bogus "response contained no id_token"; and `assertOk` accepted
+  a non-object body silently. `parseBody` now repairs unescaped control characters inside string
+  literals, and `assertOk` rejects an unparseable body outright. 83 tests.
 - **2026-09-09** — Scaffolded in `E:\Projects\bd-commerce`. Steadfast and bKash clients, shared
   HTTP and error layers, 80 tests, docs, CI workflow. Typecheck, tests, and build all pass. Not
   published, no git remote, not yet run against live credentials.

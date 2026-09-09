@@ -13,6 +13,21 @@ Confirmed payloads from live merchant accounts. The v0.1 clients were written ag
 documentation, not against a production Steadfast or bKash account. If a response you get differs
 from what the types here say, that is the highest-value issue you can open.
 
+For bKash there is a script that does this for you:
+
+```bash
+cp .env.example .env    # fill in the four BKASH_ sandbox values
+pnpm run smoke:bkash    # create + query, prints a URL to pay at
+pnpm run smoke:bkash -- --execute <paymentID>
+```
+
+It records every exchange to `.smoke/` with credentials, tokens, and customer numbers redacted, and
+diffs each response's keys against `src/bkash/types.ts`. A `DRIFT` line means this package's types
+are wrong. Sandbox credentials are free and do not require merchant onboarding.
+
+Steadfast has no sandbox, so its verification needs a real merchant account or a payload from
+someone who has one.
+
 Include the raw payload. Every error thrown carries it on `error.response`:
 
 ```ts

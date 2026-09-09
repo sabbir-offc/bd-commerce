@@ -138,6 +138,32 @@ describe('HttpClient', () => {
     ).rejects.toBeInstanceOf(HttpError)
   })
 
+  it('recovers a JSON body that has a raw newline inside a string value', async () => {
+    // Exactly what the bKash sandbox returns for bad credentials: HTTP 200
+    // carrying JSON that is not legal JSON. Without the repair the status code
+    // is unreachable and the failure gets misattributed.
+    const malformed = `{"statusCode":"9999","statusMessage":"Invalid credentials.\n"}`
+    const fetchImpl = async () =>
+      new Response(malformed, { headers: { 'content-type': 'application/json' } })
+
+    const response = await client(fetchImpl).request<{ statusCode: string }>({
+      method: 'GET',
+      path: 'things',
+    })
+
+    expect(response.data.statusCode).toBe('9999')
+  })
+
+  it('falls back to the raw text when a body cannot be repaired', async () => {
+    const fetchImpl = async () =>
+      new Response('<html>gateway error</html>', {
+        headers: { 'content-type': 'application/json' },
+      })
+
+    const response = await client(fetchImpl).request({ method: 'GET', path: 'things' })
+    expect(response.data).toBe('<html>gateway error</html>')
+  })
+
   it('sends configured headers on every request', async () => {
     const mock = createFetchMock([{ body: {} }])
     await client(mock.fetchImpl, { headers: { 'Api-Key': 'k' } }).request({

@@ -347,15 +347,26 @@ function toToken(data: BkashGrantTokenResponse, context: string): BkashToken {
  * bKash answers HTTP 200 for business failures too, carrying the real outcome
  * in `statusCode`. Anything but `0000` is an error.
  */
-function assertOk(data: BkashStatusFields | null | undefined, context: string): void {
+function assertOk(data: unknown, context: string): asserts data is BkashStatusFields {
   if (!data) {
     throw new ProviderError(`${context}: empty response`, { provider: PROVIDER })
   }
+  if (typeof data !== 'object') {
+    // The body could not be parsed into an object, so the real status code is
+    // unreachable. Surface the payload instead of failing later on a missing
+    // field and blaming the wrong thing.
+    throw new ProviderError(`${context}: unparseable response`, {
+      provider: PROVIDER,
+      response: data,
+    })
+  }
 
-  const code = data.statusCode ?? data.errorCode
+  const { statusCode, statusMessage, errorCode, errorMessage } = data as BkashStatusFields
+  const code = statusCode ?? errorCode
   if (code === undefined || code === BKASH_SUCCESS_CODE) return
 
-  const message = data.statusMessage ?? data.errorMessage ?? 'unknown error'
+  // bKash pads some messages with a trailing newline.
+  const message = (statusMessage ?? errorMessage ?? 'unknown error').trim()
   throw new ProviderError(`${context}: ${message} (${code})`, {
     provider: PROVIDER,
     providerCode: code,

@@ -215,6 +215,22 @@ describe('executePayment', () => {
   })
 })
 
+describe('unparseable responses', () => {
+  it('reports the payload instead of blaming a missing field', async () => {
+    const mock = createFetchMock([{ body: 'not json at all' }])
+    const client = new BkashClient({
+      ...CREDENTIALS,
+      sandbox: true,
+      fetch: mock.fetchImpl,
+      retries: 0,
+    })
+
+    const error = await client.executePayment('TR1').catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ProviderError)
+    expect((error as ProviderError).message).toContain('unparseable response')
+  })
+})
+
 describe('parseCallback', () => {
   it('reads a full redirect URL', () => {
     expect(

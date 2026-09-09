@@ -198,9 +198,55 @@ async function parseBody(response: Response): Promise<unknown> {
   try {
     return JSON.parse(text)
   } catch {
-    // A provider that mislabels HTML as JSON should not crash the caller.
-    return text
+    // Observed from bKash: an error body with a raw newline inside a string
+    // value, which is not legal JSON. Repair it rather than handing the caller
+    // an opaque string, because the status code we need is inside it.
+    try {
+      return JSON.parse(escapeRawControlChars(text))
+    } catch {
+      // A provider that mislabels HTML as JSON should not crash the caller.
+      return text
+    }
   }
+}
+
+/**
+ * Escapes control characters that appear inside JSON string literals, leaving
+ * the ones between tokens alone. Only reached after a normal parse has already
+ * failed.
+ */
+function escapeRawControlChars(text: string): string {
+  const ESCAPES: Record<number, string> = {
+    0x08: '\\b',
+    0x09: '\\t',
+    0x0a: '\\n',
+    0x0c: '\\f',
+    0x0d: '\\r',
+  }
+
+  let out = ''
+  let inString = false
+  let escaped = false
+
+  for (const char of text) {
+    const code = char.charCodeAt(0)
+
+    if (escaped) {
+      out += char
+      escaped = false
+    } else if (char === '\\') {
+      out += char
+      escaped = true
+    } else if (char === '"') {
+      inString = !inString
+      out += char
+    } else if (inString && code < 0x20) {
+      out += ESCAPES[code] ?? `\\u${code.toString(16).padStart(4, '0')}`
+    } else {
+      out += char
+    }
+  }
+  return out
 }
 
 function extractMessage(parsed: unknown): string | undefined {
@@ -209,7 +255,7 @@ function extractMessage(parsed: unknown): string | undefined {
     const record = parsed as Record<string, unknown>
     for (const key of ['message', 'statusMessage', 'error', 'errorMessage']) {
       const value = record[key]
-      if (typeof value === 'string' && value) return value
+      if (typeof value === 'string' && value.trim()) return value.trim()
     }
   }
   return undefined

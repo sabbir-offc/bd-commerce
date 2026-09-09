@@ -211,6 +211,9 @@ run end to end against live merchant credentials. If a field name or endpoint pa
 your merchant account returns, open an issue with the raw payload — `error.response` carries it
 verbatim — and it will be fixed quickly. `baseUrl` is overridable on both clients in the meantime.
 
+`pnpm run smoke:bkash` drives the free bKash sandbox and reports any drift between the live
+responses and the types in this package. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Contributing
 
 Issues and PRs welcome, particularly from anyone with live merchant accounts who can confirm real
