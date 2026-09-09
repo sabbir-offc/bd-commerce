@@ -337,7 +337,7 @@ function toToken(data: BkashGrantTokenResponse, context: string): BkashToken {
   // bKash reports expires_in in seconds (3600 at time of writing).
   const ttlSeconds = Number(data.expires_in)
   return {
-    idToken: data.id_token,
+    accessToken: data.id_token,
     refreshToken: data.refresh_token,
     expiresAt: Date.now() + (Number.isFinite(ttlSeconds) ? ttlSeconds : 3600) * 1000,
   }

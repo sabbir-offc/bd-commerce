@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.2.0 — unreleased
+
+### Added
+
+- `PathaoClient`: `createOrder`, `createOrders`, `getStatusByConsignmentId`, `listCities`,
+  `listZones`, `listAreas`, `resolveLocation`, `listStores`, `createStore`, `calculatePrice`.
+  Supports both the `issue-token` password grant and the client-credentials `external/login`.
+- Pathao's city, zone and area lists are cached for the life of the client.
+- `scripts/smoke-pathao.ts`, which runs the whole Pathao sandbox flow end to end with no human in
+  the loop.
+- `CourierOrder.deliveryFee`, populated where the courier quotes at create time.
+- Token management moved to `src/core/token.ts` and is now shared by bKash and Pathao.
+
+### Changed
+
+- **`Courier` is generic over its create input** (`Courier<TCreateInput>`). Pathao needs numeric
+  city and zone ids that Steadfast's free-text address does not, and widening the shared input
+  would have made required fields look optional.
+- **`getStatusByInvoice`, `getStatusByTrackingCode` and `getBalance` are optional on `Courier`.**
+  Pathao offers none of them. Probe before calling: `await courier.getBalance?.()`.
+- The root barrel now lists its exports explicitly. Steadfast and Pathao both have a
+  `toDeliveryStatus`, so they are re-exported as `toSteadfastDeliveryStatus` and
+  `toPathaoDeliveryStatus`; the unprefixed names remain on each subpath.
+- `BkashToken.idToken` is now `accessToken`, shared with Pathao.
+
+### Verified against the live sandbox
+
+Pathao's auth, store list, city/zone/area lists and price plan match the types in this package
+exactly. Order creation could not be confirmed: Pathao's shared public sandbox merchant is in
+arrears and answers 402.
+
 ## 0.1.0 — unreleased
 
 First cut. Steadfast courier and bKash tokenized checkout.

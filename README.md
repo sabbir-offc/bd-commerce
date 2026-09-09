@@ -8,8 +8,8 @@ delivery statuses treated as final, payments marked paid on a redirect that was 
 token grants fired per request until bKash rate-limits the merchant. This package is one careful
 implementation of both, so you can stop writing the third one.
 
-v0.1 covers **Steadfast** and **bKash tokenized checkout**. Pathao, RedX, and Nagad are next; see
-[ROADMAP.md](ROADMAP.md).
+Covers **Steadfast**, **Pathao Courier**, and **bKash tokenized checkout**. RedX and Nagad are
+next; see [ROADMAP.md](ROADMAP.md).
 
 - Zero runtime dependencies. Native `fetch` only, so it runs on Node 18.17+, Bun, Deno, and edge runtimes.
 - ESM and CJS, with full type declarations.
@@ -96,6 +96,70 @@ steadfast: Unauthorized Access (invalid API credentials) — 9 credential attemp
 
 Do not test Steadfast with deliberately wrong keys.
 
+## Pathao
+
+Pathao needs two things Steadfast does not: a store, and an address expressed as numeric ids from
+its own city/zone/area hierarchy.
+
+```ts
+import { PathaoClient } from 'bd-commerce/pathao'
+
+const pathao = new PathaoClient({
+  clientId: process.env.PATHAO_CLIENT_ID!,
+  clientSecret: process.env.PATHAO_CLIENT_SECRET!,
+  username: process.env.PATHAO_USERNAME!,
+  password: process.env.PATHAO_PASSWORD!,
+  defaultStoreId: Number(process.env.PATHAO_STORE_ID),
+})
+
+const where = await pathao.resolveLocation({ city: 'Dhaka', zone: 'Banani' })
+
+const order = await pathao.createOrder({
+  invoice: 'ORD-1042',
+  recipientName: 'Rahim Uddin',
+  recipientPhone: '01712345678',
+  recipientAddress: 'House 4, Road 11, Banani, Dhaka',
+  recipientCity: where.cityId,
+  recipientZone: where.zoneId,
+  codAmount: 1250,
+  itemWeight: 0.5, // kg — this sets the fee, so there is no default
+})
+
+order.consignmentId // 'DH210827A9QWE'
+order.deliveryFee // 60
+```
+
+`resolveLocation` is a deliberate separate step rather than something `createOrder` does for you.
+Silently picking the wrong zone sends a parcel to the wrong side of Dhaka, and that failure stays
+invisible until it is expensive — so an unknown or ambiguous name throws, with the closest
+candidates listed. Build your own picker with `listCities()`, `listZones(cityId)` and
+`listAreas(zoneId)` if you would rather; all three are cached for the life of the client.
+
+Quote before you commit:
+
+```ts
+const price = await pathao.calculatePrice({
+  recipientCity: where.cityId,
+  recipientZone: where.zoneId,
+  itemWeight: 0.5,
+})
+price.final_price // 60
+```
+
+### Failed attempts are not "in transit"
+
+Pathao reports `Pickup_Failed` and `Delivery_Failed`. Neither means the parcel is moving — nothing
+happens until someone acts — so both normalize to `on_hold` rather than hiding inside `in_transit`
+where a merchant filtering for active parcels would never see them again:
+
+```ts
+const status = await pathao.getStatusByConsignmentId(order.consignmentId)
+
+if (status.status === 'on_hold') await escalate(order.invoice, status.providerStatus)
+```
+
+Also available: `createOrders` (bulk), `listStores`, `createStore`.
+
 ## bKash
 
 ```ts
@@ -166,6 +230,22 @@ const bkash = new BkashClient({
 Concurrent calls in one process share a single grant, and an id token rejected mid-life is
 re-granted and retried once automatically.
 
+## What each courier supports
+
+`Courier` is generic over its create input, because couriers genuinely differ: Steadfast takes a
+free-text address, Pathao requires ids from its hierarchy. Optional methods are optional because
+not every courier has them — probe with `await courier.getBalance?.()` rather than assuming.
+
+|                               | Steadfast | Pathao                                            |
+| ----------------------------- | --------- | ------------------------------------------------- |
+| `createOrder`, `createOrders` | yes       | yes                                               |
+| `getStatusByConsignmentId`    | yes       | yes                                               |
+| `getStatusByInvoice`          | yes       | no                                                |
+| `getStatusByTrackingCode`     | yes       | no (the consignment id is the tracking reference) |
+| `getBalance`                  | yes       | no                                                |
+| Address                       | free text | `resolveLocation` or city/zone/area ids           |
+| Price quote before shipping   | no        | `calculatePrice`                                  |
+
 ## Errors
 
 Everything thrown is a `BdCommerceError` with a `code`, the `provider`, and the parsed `response`.
@@ -224,9 +304,13 @@ run end to end against live merchant credentials. If a field name or endpoint pa
 your merchant account returns, open an issue with the raw payload — `error.response` carries it
 verbatim — and it will be fixed quickly. `baseUrl` is overridable on both clients in the meantime.
 
-`pnpm run smoke:bkash` drives the free bKash sandbox and `pnpm run smoke:steadfast` runs a
-read-only pass against Steadfast; both report any drift between the live responses and the types in
-this package. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Verified so far, by running the smoke scripts against the real APIs: Pathao's auth, stores,
+city/zone/area lists and price plan all match the types here exactly. Pathao's order creation, and
+everything on the Steadfast and bKash success paths, is still unconfirmed.
+
+`pnpm run smoke:pathao`, `pnpm run smoke:bkash` and `pnpm run smoke:steadfast` each report any
+drift between the live responses and the types in this package. See
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Contributing
 

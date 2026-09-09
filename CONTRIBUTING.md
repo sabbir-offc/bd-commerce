@@ -25,6 +25,14 @@ It records every exchange to `.smoke/` with credentials, tokens, and customer nu
 diffs each response's keys against `src/bkash/types.ts`. A `DRIFT` line means this package's types
 are wrong. Sandbox credentials are free and do not require merchant onboarding.
 
+Pathao has a real sandbox and its script needs no setup at all — it falls back to the sandbox
+credentials Pathao publishes in its own docs:
+
+```bash
+pnpm run smoke:pathao              # auth, stores, hierarchy, price, order, read-back
+pnpm run smoke:pathao -- --no-create
+```
+
 Steadfast has no sandbox — every call is live — so its script defaults to read-only:
 
 ```bash

@@ -9,13 +9,20 @@ its payment gateway. That means shipping narrow and correct before shipping wide
 - bKash tokenized checkout: create, execute, query, refund, search, callback parsing.
 - Shared HTTP layer, error hierarchy, BD phone normalization.
 
-## v0.2 — Pathao
+## v0.2 — Pathao (shipped)
 
-Pathao Courier has a real OAuth flow and a store/city/zone/area hierarchy that Steadfast does not.
-The `Courier` interface already exists for this; the open question is whether address resolution
-(city to zone to area lookups, with caching) belongs behind `createOrder` or stays an explicit step.
-Explicit is probably right — silent geocoding that picks the wrong zone is worse than a required
-argument.
+Auth (both the documented password grant and the client-credentials login Pathao's own WooCommerce
+plugin uses), orders, bulk orders, order info, stores, the city/zone/area hierarchy with caching,
+and price plans.
+
+The open question from v0.1 is settled: address resolution stays an explicit step. `resolveLocation`
+turns names into ids and refuses ambiguity rather than guessing, because a silently wrong zone is
+invisible until a parcel is on the wrong side of Dhaka. `createOrder` takes ids only.
+
+Two things fell out of building it. `Courier` is now generic over its create input, since Pathao
+genuinely needs more than a free-text address and pretending otherwise only fails at runtime. And
+`getStatusByInvoice`, `getStatusByTrackingCode` and `getBalance` are now optional, because Pathao
+has none of them.
 
 ## v0.3 — RedX
 

@@ -15,7 +15,11 @@ export type DeliveryStatus =
   | 'partial_delivered'
   /** Came back to the merchant. */
   | 'returned'
-  /** Paused at the merchant's or the courier's request. */
+  /**
+   * Stalled and needing someone's attention: paused at the merchant's or the
+   * courier's request, or a pickup or delivery attempt that failed and will not
+   * progress on its own.
+   */
   | 'on_hold'
   /** Courier is reviewing the outcome; not final. See `pendingApproval`. */
   | 'in_review'
@@ -48,6 +52,8 @@ export interface CourierOrder {
   /** The provider's own status string, verbatim. */
   providerStatus: string
   codAmount: number
+  /** What the courier will charge to deliver, when it says so at create time. */
+  deliveryFee?: number
   createdAt?: string
   raw: unknown
 }
@@ -76,12 +82,32 @@ export type BulkOrderResult =
   | { ok: true; invoice: string; order: CourierOrder }
   | { ok: false; invoice: string; message: string; raw: unknown }
 
-export interface Courier {
+/**
+ * The shared courier surface.
+ *
+ * Generic over its create input because couriers genuinely differ in what an
+ * address is: Steadfast takes a free-text line, Pathao requires numeric city,
+ * zone and area ids from its own hierarchy. Widening `CreateOrderInput` to the
+ * union of every provider's needs would make required fields look optional, and
+ * pretending Pathao accepts the base input would only fail at runtime.
+ *
+ * Code that handles couriers uniformly should parameterise on the input type it
+ * actually has, rather than assume one shape fits all.
+ */
+export interface Courier<TCreateInput extends CreateOrderInput = CreateOrderInput> {
   readonly provider: string
-  createOrder(input: CreateOrderInput): Promise<CourierOrder>
-  createOrders(inputs: CreateOrderInput[]): Promise<BulkOrderResult[]>
+  createOrder(input: TCreateInput): Promise<CourierOrder>
+  createOrders(inputs: TCreateInput[]): Promise<BulkOrderResult[]>
+  /** The one lookup every courier supports: its own consignment reference. */
   getStatusByConsignmentId(consignmentId: string | number): Promise<CourierStatus>
-  getStatusByInvoice(invoice: string): Promise<CourierStatus>
-  getStatusByTrackingCode(trackingCode: string): Promise<CourierStatus>
-  getBalance(): Promise<CourierBalance>
+
+  /**
+   * Optional because not every courier offers them. Steadfast can look an order
+   * up by your invoice or its tracking code and report a wallet balance; Pathao
+   * exposes none of the three, and claiming otherwise would only fail at call
+   * time. Probe before use: `await courier.getBalance?.()`.
+   */
+  getStatusByInvoice?(invoice: string): Promise<CourierStatus>
+  getStatusByTrackingCode?(trackingCode: string): Promise<CourierStatus>
+  getBalance?(): Promise<CourierBalance>
 }

@@ -167,7 +167,16 @@ function diffKeys(body: Record<string, unknown>, spec: KeySpec, prefix: string):
 
   for (const [key, childSpec] of Object.entries(nested)) {
     const child = body[key]
-    if (isRecord(child)) problems.push(...diffKeys(child, childSpec, `${prefix}${key}.`))
+
+    if (isRecord(child)) {
+      problems.push(...diffKeys(child, childSpec, `${prefix}${key}.`))
+      continue
+    }
+    // List endpoints put the keys worth checking inside array elements. One
+    // element is enough: a homogeneous list drifts as a whole.
+    if (Array.isArray(child) && isRecord(child[0])) {
+      problems.push(...diffKeys(child[0], childSpec, `${prefix}${key}[0].`))
+    }
   }
 
   return problems

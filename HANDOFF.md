@@ -4,7 +4,7 @@ A running record of where this project stands. Updated as things happen, not at 
 
 ## Resume here
 
-v0.1 is code-complete and green: 86 tests, typecheck clean, ESM + CJS + d.ts build. Pushed to
+v0.2 is code-complete and green: 137 tests, typecheck clean, ESM + CJS + d.ts build. Pushed to
 https://github.com/sabbir-offc/bd-commerce (public). Not published to npm.
 
 The next two things, in order:
@@ -25,10 +25,13 @@ The next two things, in order:
 ```
 src/core/      errors.ts, http.ts, phone.ts     shared transport and validation
 src/courier/   types.ts                          the Courier interface Pathao/RedX will implement
+src/core/      token.ts                          shared by bKash and Pathao
 src/steadfast/ client.ts, status.ts, types.ts
 src/bkash/     client.ts, token.ts, types.ts
-test/          86 tests, no network, scripted fetch double in helpers.ts
-scripts/       smoke-bkash.ts, smoke-steadfast.ts, lib/recorder.ts (shared)
+src/pathao/    client.ts, status.ts, types.ts
+test/          137 tests, no network, scripted fetch double in helpers.ts
+scripts/       smoke-bkash.ts, smoke-steadfast.ts, smoke-pathao.ts, lib/recorder.ts (shared)
+scripts/ci/    import-check.mjs, run against dist on every Node in engines
 examples/      steadfast-order.ts, bkash-checkout.ts
 ```
 
@@ -48,6 +51,15 @@ examples/      steadfast-order.ts, bkash-checkout.ts
   for serverless, and the README says so rather than guessing at Redis.
 - **Bulk create reports per row.** Steadfast fails rows individually; collapsing that into one
   throw would lose orders.
+- **`Courier` is generic, and three of its methods are optional.** Pathao needs numeric city and
+  zone ids where Steadfast takes free text, and has no invoice lookup, tracking-code lookup or
+  balance. Widening the shared input or faking the missing methods would only move the failure to
+  runtime.
+- **Pathao address resolution is explicit.** `resolveLocation` is a separate call and refuses an
+  ambiguous name instead of guessing. A wrong zone is invisible until a parcel is on the wrong side
+  of Dhaka.
+- **The root barrel is written out by hand.** Steadfast and Pathao both export `toDeliveryStatus`;
+  a wildcard would leave which one you got down to file order.
 
 ## Open
 
@@ -63,6 +75,16 @@ examples/      steadfast-order.ts, bkash-checkout.ts
 
 ## Confirmed against the live APIs
 
+- **Pathao's read surface matches these types exactly.** A full sandbox run on 2026-09-09 reported
+  `ok` for `issue-token`, `stores`, `city-list`, `zone-list`, `area-list` and `price-plan`, after
+  adding the pagination and price fields the first run flagged as extra.
+- **Pathao's city list lives at `countries/1/city-list`.** A bare `city-list` 404s. This is the
+  single most common mistake in third-party Pathao wrappers; the path here came from Pathao's own
+  WooCommerce plugin.
+- **Pathao order creation is still unconfirmed.** The shared public sandbox merchant is in arrears
+  and answers HTTP 402, so the create payload has never been accepted. It needs a sandbox merchant
+  in good standing. Everything else in the flow is verified.
+
 - **Steadfast uses a real HTTP 401** for bad credentials, with the code mirrored in the body's
   `status`. Our `AuthError` mapping is correct for it. bKash does the opposite (see Open).
 - **Steadfast rate-limits credential attempts.** A 401 carries `attempts_left`, counting down to a
@@ -70,6 +92,13 @@ examples/      steadfast-order.ts, bkash-checkout.ts
   now surfaced in the error message. Never point the smoke script at Steadfast with wrong keys.
 
 ## Log
+
+- **2026-09-09** — Pathao client, 51 new tests, and `scripts/smoke-pathao.ts`, which runs the whole
+  sandbox flow with no human in the loop and no setup (it falls back to Pathao's published sandbox
+  credentials). Building it forced two interface changes: `Courier` is now generic over its create
+  input, and its invoice/tracking/balance methods are optional. Token handling moved to
+  `src/core/token.ts`. The root barrel is explicit now that two providers export
+  `toDeliveryStatus`. 137 tests.
 
 - **2026-09-09** — Added `scripts/smoke-steadfast.ts` and pulled the shared recorder into
   `scripts/lib/recorder.ts`. The Steadfast script is read-only unless given both `--create` and
