@@ -230,7 +230,7 @@ describe('createPayment', () => {
     expect((error as Error).message).toContain('merchant not found')
   })
 
-  it('says the key pair is mismatched when decryption fails', async () => {
+  it('reports a key mismatch rather than a missing field', async () => {
     const stranger = keypair()
     const badReply: MockReply = {
       body: {
@@ -251,33 +251,59 @@ describe('createPayment', () => {
   })
 })
 
-describe("Node's RSA decryption does not fail loudly", () => {
-  it('returns garbage rather than throwing on a mismatched key', () => {
-    // The mitigations for the Marvin/Bleichenbacher attacks made implicit
-    // rejection the norm: a wrong key yields random bytes, not an exception.
-    // The client's "keys do not match" message depends on this, so if this
-    // test ever fails, that error handling can be simplified.
-    const stranger = keypair()
-    const ciphertext = publicEncrypt(
-      { key: stranger.publicKey, padding: constants.RSA_PKCS1_PADDING },
-      Buffer.from('{"a":1}', 'utf8'),
-    ).toString('base64')
-
-    const mine = createNodeCrypto({
-      merchantPrivateKey: merchant.privateKey,
-      nagadPublicKey: nagad.publicKey,
+describe('a mismatched key pair', () => {
+  // How this surfaces is platform-dependent: some Node/OpenSSL builds raise a
+  // padding error, others apply implicit rejection and return random bytes that
+  // fail to parse. Node 24 on Windows did the latter 200/200; Node 22 on Linux
+  // did the former. Assert the client's behaviour, not Node's internals, so the
+  // test holds everywhere.
+  // Both branches, forced. The runtime only ever takes one of these, so
+  // injecting the crypto is the only way to cover the other one everywhere.
+  it.each([
+    [
+      'the runtime throws a padding error',
+      () => {
+        throw new Error('error:02000084:rsa routines::data too large for modulus')
+      },
+    ],
+    ['the runtime returns random bytes', () => ' £not json at all'],
+  ])('reports a key mismatch when %s', async (_label, decrypt) => {
+    const { client } = makeClient([{ body: { sensitiveData: 'x', signature: '' } }], {
+      crypto: {
+        encrypt: () => 'ciphertext',
+        decrypt: decrypt as () => string,
+        sign: () => 'signature',
+        verify: () => true,
+      },
     })
 
-    let threw = false
-    let plaintext = ''
-    try {
-      plaintext = mine.decrypt(ciphertext)
-    } catch {
-      threw = true
-    }
+    const error = await client
+      .createPayment({ orderId: 'ORD-1042', amount: 1250 })
+      .catch((e: unknown) => e)
 
-    expect(threw).toBe(false)
-    expect(() => JSON.parse(plaintext)).toThrow()
+    expect(error).toBeInstanceOf(ProviderError)
+    expect((error as Error).message).toContain('does not match the public key')
+  })
+
+  it('always reports the key mismatch, however the runtime signals it', async () => {
+    const stranger = keypair()
+    const badReply: MockReply = {
+      body: {
+        sensitiveData: publicEncrypt(
+          { key: stranger.publicKey, padding: constants.RSA_PKCS1_PADDING },
+          Buffer.from('{"a":1}', 'utf8'),
+        ).toString('base64'),
+        signature: '',
+      },
+    }
+    const { client } = makeClient([badReply])
+
+    const error = await client
+      .createPayment({ orderId: 'ORD-1042', amount: 1250 })
+      .catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(ProviderError)
+    expect((error as Error).message).toContain('does not match the public key')
   })
 })
 

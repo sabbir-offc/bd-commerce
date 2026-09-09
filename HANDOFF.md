@@ -102,10 +102,13 @@ examples/      steadfast-order.ts, bkash-checkout.ts
 
 ## Confirmed against the live APIs
 
-- **Node's `privateDecrypt` never throws on a mismatched RSA key** — measured 200/200 silently
-  returning random bytes, which is the Marvin/Bleichenbacher implicit-rejection behaviour. The
-  Nagad client's "your key pair does not match" message therefore keys off the JSON parse failing,
-  not off a thrown decrypt. `test/nagad.test.ts` pins this so the branch is not "simplified" away.
+- **A mismatched RSA key surfaces differently per runtime, and both ways must be handled.** Node 24
+  on Windows applied implicit rejection and returned random bytes 200 times out of 200; Node 22 on
+  Linux raised a padding error. An earlier version of this client trusted the Windows measurement,
+  dropped the try/catch around `decrypt` as unreachable, and leaked a raw OpenSSL error on CI. The
+  client now catches the throw _and_ the JSON-parse failure and reports one message for both.
+  `test/nagad.test.ts` forces each branch through an injected crypto provider, because the runtime
+  only ever exercises one of them.
 
 - **RedX's host, path prefix and auth header are right** (2026-09-10). A single read-only probe against
   `sandbox.redx.com.bd/v1.0.0-beta/pickup/stores` with an invalid token returned 401, not 404, so

@@ -2,7 +2,17 @@
 
 ## 0.4.1 — 2026-09-10
 
-Documentation only. No code changed; the published 0.4.0 artifact is byte-identical in behaviour.
+Mostly documentation, plus one real fix that CI caught before it could ship.
+
+### Fixed
+
+- **A mismatched Nagad RSA key pair could leak a raw OpenSSL error** instead of the intended
+  `ProviderError`. How the failure surfaces depends on the runtime — some Node and OpenSSL builds
+  raise a padding error, others apply implicit rejection and return random bytes — and 0.4.0 handled
+  only the second. Both are now caught and reported identically, and the tests force each branch
+  through an injected crypto provider rather than depending on which one the runtime takes.
+- Release notes are now extracted before the npm publish rather than after, so a missing changelog
+  section stops a release while that is still free.
 
 - Rewrote the README around a table of contents, a quick start, support matrices for couriers and
   payments, and a consolidated table of the mistakes this package prevents.
